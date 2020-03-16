@@ -26,10 +26,11 @@ foreach var in gkclasstype g1classtype g2classtype g3classtype {
 
 * number of small class kgtn
 count if gkclasstype_treat == 3
+scalar smallk = r(N)
 
 * number of large class 3rd gdrs who were in small kgtn class
 count if gkclasstype_treat == 3 & g3classtype_treat == 1
-*scalar countsize = r(N)
+scalar countsize = r(N)
 
 
 
@@ -91,17 +92,54 @@ gkthighdegree_encoded gktcareer_encoded gkfreelunch_encoded gkrepeat_encoded gks
 reg g4reads ib3.gkclasstype_treat $balancevarlist, baselevels
 eststo readscore
 
-esttab readscore
-
 
 * math scores - small class omitted
 reg g4maths ib3.gkclasstype_treat $balancevarlist, baselevels
 eststo mathscore
 
-esttab mathscore
+esttab readscore mathscore
 
 * table making options
 *outreg2
 *esttab
 
 ** Exercise 4 **
+
+* small KGTN regular 3rd - taking regular as regular class no aide
+count if gkclasstype_treat == 3 & g3classtype_treat == 2
+scalar small2reg = r(N)
+
+* number of years in small classes
+gen smallk = 0
+gen smallone = 0
+gen smalltwo = 0 
+gen smallthree = 0
+
+replace smallk = 1 if gkclasstype_treat == 3
+replace smallone = 1 if g1classtype_treat == 3
+replace smalltwo = 1 if g2classtype_treat == 3
+replace smallthree = 1 if g3classtype_treat == 3
+
+gen num_yearssmall = smallk + smallone + smalltwo + smallthree
+
+*crosstab
+tab num_yearssmall gkclasstype_treat, matcell(smallxclass)
+matrix list smallxclass
+
+** Exercise 5 ** 
+
+* Add precision discussion
+
+* more # years in small class ~ test scores
+
+* reading
+reg g4reads num_yearssmall $balancevarlist
+eststo readingxyears
+
+
+* math
+reg g4maths num_yearssmall $balancevarlist
+eststo mathxyears
+
+esttab readingxyears mathxyears
+
