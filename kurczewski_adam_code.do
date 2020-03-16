@@ -31,26 +31,38 @@ count if gkclasstype_treat == 3
 count if gkclasstype_treat == 3 & g3classtype_treat == 1
 *scalar countsize = r(N)
 
+
+
+
 ** Exercise 2 **
 
-* unhappy with the imprecision from encoding to transform variables - circle back after first pass to manually recode each variable (destring OR encode)
-
 *create balance variable list KGTN only
-global encodevarlist gender race gksurban gktgen gktrace gkthighdegree gktcareer gktyears gkfreelunch ///
-		gkrepeat gkspeced gkspecin gkpresent ///
-			gktreads gktmaths gktlistss gkwordskillss gkmotivraw gkselfconcraw
-			
+
+global encodevarlist gender race gksurban gktgen gktrace gkthighdegree gktcareer gkfreelunch ///
+gkrepeat gkspeced gkspecin  
 			
 foreach var in $encodevarlist {
 	replace `var' = "" if `var' == "NA"
 	encode `var', g(`var'_encoded)
 }
 
+
+global destringvarlist gktyears gkabsent gktreadss gktmathss gktlistss gkwordskillss gkmotivraw gkselfconcraw
+
+foreach var in $destringvarlist {
+	replace `var' = "" if `var' == "NA"
+	destring `var', g(`var'_encoded)
+}
+
+
 global balancevarlist  gender_encoded race_encoded gksurban_encoded gktgen_encoded gktrace_encoded gkthighdegree_encoded gktcareer_encoded gktyears_encoded gkfreelunch_encoded ///
-		gkrepeat_encoded gkspeced_encoded gkspecin_encoded gkpresent_encoded ///
-			gktreads_encoded gktmaths_encoded gktlistss_encoded gkwordskillss_encoded gkmotivraw_encoded gkselfconcraw_encoded
+		gkrepeat_encoded gkspeced_encoded gkspecin_encoded gkabsent_encoded ///
+			gktreadss_encoded gktmathss_encoded gktlistss_encoded gkwordskillss_encoded gkmotivraw_encoded gkselfconcraw_encoded
 
 			
+
+* balance test
+** output to better format for final write up
 iebaltab $balancevarlist, grpvar(gkclasstype_treat) save(balancetest) total replace
 * gktgen_encoded = NA due to 0 male KGTN teachers!
 
@@ -58,7 +70,38 @@ iebaltab $balancevarlist, grpvar(gkclasstype_treat) save(balancetest) total repl
 
 
 
-* table making
-outreg2
-esttab
+** Exercise 3 **
 
+* outcomes = g4treadss & g4tmathss
+* compare = small class KGTN // regular size (no aide)
+
+replace g4treadss = ""  if g4treadss == "NA"
+destring g4treadss, g(g4reads)
+
+replace g4tmathss = "" if g4tmathss == "NA"
+destring g4tmathss, g(g4maths)
+
+
+* reading scores - small class omitted
+reg g4reads ib3.gkclasstype_treat gender_encoded race_encoded gksurban_encoded gktgen_encoded ///
+gkthighdegree_encoded gktcareer_encoded gkfreelunch_encoded gkrepeat_encoded gkspeced_encoded ///
+ gkspecin_encoded gktyears_encoded gktreadss_encoded gktmathss_encoded gktlistss_encoded gkwordskillss_encoded ///
+ gkmotivraw_encoded gkselfconcraw_encoded, baselevels
+ 
+reg g4reads ib3.gkclasstype_treat $balancevarlist, baselevels
+eststo readscore
+
+esttab readscore
+
+
+* math scores - small class omitted
+reg g4maths ib3.gkclasstype_treat $balancevarlist, baselevels
+eststo mathscore
+
+esttab mathscore
+
+* table making options
+*outreg2
+*esttab
+
+** Exercise 4 **
