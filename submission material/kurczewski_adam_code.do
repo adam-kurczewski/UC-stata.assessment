@@ -5,6 +5,7 @@ Adam Kurczewski
 
 * package intall
 ssc install ietoolkit
+*ssc install outtable
 
 clear all
 
@@ -24,13 +25,18 @@ foreach var in gkclasstype g1classtype g2classtype g3classtype {
 	encode `var', g(`var'_treat) label(classT)
 }
 
+* alternative approach: indicator for small class only
+gen smallk_dum = 0
+replace smallk_dum = 1 if gkclasstype_treat == 3
+replace smallk_dum = . if gkclasstype_treat == .
+
 * number of small class kgtn
 count if gkclasstype_treat == 3
-scalar smallk = r(N)
+scalar smallk_count = r(N)
 
 * number of large class 3rd gdrs who were in small kgtn class
 count if gkclasstype_treat == 3 & g3classtype_treat == 1
-scalar countsize = r(N)
+scalar smallxlarge_count = r(N)
 
 
 
@@ -39,8 +45,7 @@ scalar countsize = r(N)
 
 *create balance variable list KGTN only
 
-global encodevarlist gender race gksurban gktgen gktrace gkthighdegree gktcareer gkfreelunch ///
-gkrepeat gkspeced gkspecin  
+global encodevarlist gender race gksurban gktgen gktrace gkthighdegree gkfreelunch 
 			
 foreach var in $encodevarlist {
 	replace `var' = "" if `var' == "NA"
@@ -48,25 +53,35 @@ foreach var in $encodevarlist {
 }
 
 
+*codebook indicates these tests were end of year, not prior to randomization - only use teacher years
+/*
 global destringvarlist gktyears gkabsent gktreadss gktmathss gktlistss gkwordskillss gkmotivraw gkselfconcraw
 
 foreach var in $destringvarlist {
 	replace `var' = "" if `var' == "NA"
 	destring `var', g(`var'_encoded)
 }
+*/
+
+replace gktyears = "" if gktyears == "NA"
+destring gktyears , g(gktyears_encoded)
+
+*global balancevarlist  gender_encoded race_encoded gksurban_encoded gktgen_encoded gktrace_encoded gkthighdegree_encoded gktcareer_encoded gktyears_encoded gkfreelunch_encoded ///
+*		gkrepeat_encoded gkspeced_encoded gkspecin_encoded gkabsent_encoded ///
+*			gktreadss_encoded gktmathss_encoded gktlistss_encoded gkwordskillss_encoded gkmotivraw_encoded gkselfconcraw_encoded
 
 
-global balancevarlist  gender_encoded race_encoded gksurban_encoded gktgen_encoded gktrace_encoded gkthighdegree_encoded gktcareer_encoded gktyears_encoded gkfreelunch_encoded ///
-		gkrepeat_encoded gkspeced_encoded gkspecin_encoded gkabsent_encoded ///
-			gktreadss_encoded gktmathss_encoded gktlistss_encoded gkwordskillss_encoded gkmotivraw_encoded gkselfconcraw_encoded
-
+global balancevarlist gender_encoded race_encoded gksurban_encoded gktgen_encoded gktrace_encoded gkthighdegree_encoded gkfreelunch_encoded ///
+		gktyears_encoded
 			
 
 * balance test
 ** output to better format for final write up
-iebaltab $balancevarlist, grpvar(gkclasstype_treat) save(balancetest) total replace
+*iebaltab $balancevarlist, grpvar(gkclasstype_treat) save(balancetest) total replace
 * gktgen_encoded = NA due to 0 male KGTN teachers!
 
+iebaltab $balancevarlist, grpvar(gkclasstype_treat) savetex(balancetest) ///
+ tblnote("Summary statistics and balance test results") replace
 
 
 
@@ -74,7 +89,7 @@ iebaltab $balancevarlist, grpvar(gkclasstype_treat) save(balancetest) total repl
 ** Exercise 3 **
 
 * outcomes = g4treadss & g4tmathss
-* compare = small class KGTN // regular size (no aide)
+* compare = small class KGTN ~ regular size (no aide)
 
 replace g4treadss = ""  if g4treadss == "NA"
 destring g4treadss, g(g4reads)
@@ -84,11 +99,6 @@ destring g4tmathss, g(g4maths)
 
 
 * reading scores - small class omitted
-reg g4reads ib3.gkclasstype_treat gender_encoded race_encoded gksurban_encoded gktgen_encoded ///
-gkthighdegree_encoded gktcareer_encoded gkfreelunch_encoded gkrepeat_encoded gkspeced_encoded ///
- gkspecin_encoded gktyears_encoded gktreadss_encoded gktmathss_encoded gktlistss_encoded gkwordskillss_encoded ///
- gkmotivraw_encoded gkselfconcraw_encoded, baselevels
- 
 reg g4reads ib3.gkclasstype_treat $balancevarlist, baselevels
 eststo readscore
 
@@ -97,7 +107,9 @@ eststo readscore
 reg g4maths ib3.gkclasstype_treat $balancevarlist, baselevels
 eststo mathscore
 
-esttab readscore mathscore
+esttab readscore mathscore, ///
+title(Figure 2 \label{fig2}) tex 
+
 
 * table making options
 *outreg2
@@ -105,11 +117,25 @@ esttab readscore mathscore
 
 ** Exercise 4 **
 
-* small KGTN regular 3rd - taking regular as regular class no aide
+* small KGTN regular 3rd - taking 'regular' as regular class no aide
 count if gkclasstype_treat == 3 & g3classtype_treat == 2
-scalar small2reg = r(N)
+scalar smallxreg_count = r(N)
 
 * number of years in small classes
+
+/* dummy route - drastically dif result not sure why - comments welcome on this
+dummies for each year results in 3 new vars per year, one var for each T type
+sum small class T type dummies for each year (efficiency concern? - 12 new vars vs 5)
+
+* dummies:
+tab gkclasstype_treat, g(tk)
+tab g1classtype_treat, g(tone)
+tab g2classtype_treat, g(ttwo)
+tab g3classtype_treat, g(tthree)
+
+gen smallyears = tk3 + tone3 + ttwo3 + tthree3
+*/
+
 gen smallk = 0
 gen smallone = 0
 gen smalltwo = 0 
@@ -141,5 +167,5 @@ eststo readingxyears
 reg g4maths num_yearssmall $balancevarlist
 eststo mathxyears
 
-esttab readingxyears mathxyears
+esttab readingxyears mathxyears, tex
 
